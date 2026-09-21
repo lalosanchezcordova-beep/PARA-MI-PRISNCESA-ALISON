@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Para Ti 🌻</title>
+<style>
+  :root{
+    --bg:#05030a;
+    --accent:#ffb347;
+    --accent2:#ff8c42;
+    --text:#fff3d6;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    width:100%; height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    font-family:'Georgia', 'Times New Roman', serif;
+    -webkit-user-select:none; user-select:none;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  canvas{
+    position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    display:block;
+  }
+
+  /* ---- Pantalla de inicio ---- */
+  #startScreen{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:18px;
+    background:radial-gradient(circle at 50% 45%, rgba(255,140,50,0.22), rgba(5,3,10,0.96) 70%);
+    z-index:10;
+    transition:opacity 1s ease;
+    text-align:center;
+    padding:24px;
+  }
+  #startScreen .flower{
+    font-size:56px;
+    filter:drop-shadow(0 0 18px rgba(255,179,71,0.7));
+    animation:float 3s ease-in-out infinite;
+  }
+  @keyframes float{
+    0%,100%{transform:translateY(0px);}
+    50%{transform:translateY(-10px);}
+  }
+  #startScreen h1{
+    color:var(--text);
+    font-size:1.4rem;
+    letter-spacing:1px;
+    font-weight:400;
+    text-shadow:0 0 12px rgba(255,179,71,0.5);
+  }
+  #startBtn{
+    margin-top:10px;
+    background:transparent;
+    border:1.5px solid var(--accent);
+    color:var(--accent);
+    padding:12px 30px;
+    font-size:1rem;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    cursor:pointer;
+    border-radius:30px;
+    font-family:'Courier New', monospace;
+    transition:all .3s ease;
+  }
+  #startBtn:hover, #startBtn:active{
+    background:var(--accent);
+    color:#1a0f00;
+    box-shadow:0 0 25px rgba(255,179,71,0.6);
+  }
+  #startScreen small{
+    color:#c9a877;
+    font-size:.75rem;
+    letter-spacing:1px;
+    margin-top:6px;
+  }
+
+  /* ---- Pantalla final ---- */
+  #endScreen{
+    position:fixed; inset:0;
+    display:none;
+    flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:16px;
+    background:radial-gradient(circle at 50% 45%, rgba(255,140,50,0.25), rgba(5,3,10,0.97) 70%);
+    z-index:10;
+    text-align:center;
+    padding:32px;
+    opacity:0;
+    transition:opacity 1.4s ease;
+  }
+  #endScreen h2{
+    color:var(--text);
+    font-size:1.6rem;
+    font-weight:400;
+    text-shadow:0 0 14px rgba(255,179,71,0.6);
+  }
+  #endScreen p{
+    color:#e7c99b;
+    max-width:340px;
+    line-height:1.6;
+    font-size:1rem;
+  }
+  #replayBtn{
+    margin-top:8px;
+    background:transparent;
+    border:1.5px solid var(--accent);
+    color:var(--accent);
+    padding:10px 26px;
+    font-size:.85rem;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    cursor:pointer;
+    border-radius:30px;
+    font-family:'Courier New', monospace;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="startScreen">
+  <div class="flower">🌻</div>
+  <h1>Empezar Viaje</h1>
+  <button id="startBtn">Empezar Viaje</button>
+  <small>Toca para comenzar</small>
+</div>
+
+<div id="endScreen">
+  <div style="font-size:48px;">🌻</div>
+  <h2>Por siempre, mi persona favorita</h2>
+  <p>Cada mensaje que viste es real. Gracias por estar, por quedarte y por hacerlo todo mejor.</p>
+  <button id="replayBtn">Volver a empezar</button>
+</div>
+
+<script>
+/* ============================================================
+   EDITA AQUÍ TUS MENSAJES — todo lo demás es solo el motor
+   ============================================================ */
+const MESSAGES = [
+  "Por siempre",
+  "Contigo todo es mejor",
+  "Mi persona favorita",
+  "Eres especial",
+  "Un sol para ti 🌻",
+  "Gracias por existir",
+  "Flores para ti",
+  "Siempre juntos",
+  "Eres mi lugar seguro",
+  "Te quiero",
+  "Contigo todo es más fácil",
+  "Mi lugar favorito eres tú",
+  "Gracias por escoger quedarte",
+  "Eres para mí"
+];
+
+const startScreen = document.getElementById('startScreen');
+const endScreen   = document.getElementById('endScreen');
+const startBtn    = document.getElementById('startBtn');
+const replayBtn   = document.getElementById('replayBtn');
+const canvas      = document.getElementById('c');
+const ctx         = canvas.getContext('2d');
+
+let W, H, cx, cy;
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W/2; cy = H/2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ---------- Partículas del túnel ---------- */
+const NUM_STARS  = 220;
+const NUM_FLOWER = 26;
+const NUM_TEXT   = MESSAGES.length;
+const FOCAL = 260;
+const particles = [];
+
+function randRange(a,b){ return a + Math.random()*(b-a); }
+
+function makeParticle(type, msg){
+  return {
+    type,                                   // 'star' | 'flower' | 'text'
+    msg: msg || null,
+    x: randRange(-W, W),
+    y: randRange(-H, H),
+    z: randRange(0.1, FOCAL),
+    speed: randRange(1.2, 3.2)
+  };
+}
+
+function resetParticle(p){
+  p.x = randRange(-W, W);
+  p.y = randRange(-H, H);
+  p.z = FOCAL;
+}
+
+function initParticles(){
+  particles.length = 0;
+  for(let i=0;i<NUM_STARS;i++)  particles.push(makeParticle('star'));
+  for(let i=0;i<NUM_FLOWER;i++) particles.push(makeParticle('flower'));
+  MESSAGES.forEach(m => particles.push(makeParticle('text', m)));
+}
+initParticles();
+
+let running = false;
+let elapsed = 0;
+const DURATION = 20000; // ms antes de mostrar pantalla final
+
+function drawFlower(px, py, size){
+  ctx.save();
+  ctx.translate(px, py);
+  const petals = 6;
+  for(let i=0;i<petals;i++){
+    ctx.save();
+    ctx.rotate((Math.PI*2/petals)*i);
+    ctx.beginPath();
+    ctx.ellipse(0, -size*0.55, size*0.32, size*0.55, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#ffb347';
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath();
+  ctx.arc(0,0,size*0.38,0,Math.PI*2);
+  ctx.fillStyle = '#7a3b12';
+  ctx.fill();
+  ctx.restore();
+}
+
+function frame(ts){
+  if(!running) return;
+  if(!frame.last) frame.last = ts;
+  const dt = ts - frame.last;
+  frame.last = ts;
+  elapsed += dt;
+
+  ctx.fillStyle = 'rgba(5,3,10,0.35)';
+  ctx.fillRect(0,0,W,H);
+
+  for(const p of particles){
+    p.z -= p.speed * (dt/16);
+    if(p.z <= 1){ resetParticle(p); continue; }
+
+    const scale = FOCAL / p.z;
+    const sx = cx + p.x * scale * 0.02;
+    const sy = cy + p.y * scale * 0.02;
+    if(sx < -200 || sx > W+200 || sy < -200 || sy > H+200){ resetParticle(p); continue; }
+
+    const alpha = Math.min(1, (FOCAL - p.z)/FOCAL * 2.2);
+
+    if(p.type === 'star'){
+      const prevScale = FOCAL / (p.z + p.speed*4);
+      const px = cx + p.x * prevScale * 0.02;
+      const py = cy + p.y * prevScale * 0.02;
+      ctx.strokeStyle = `rgba(255,214,153,${alpha*0.6})`;
+      ctx.lineWidth = Math.max(0.6, scale*0.15);
+      ctx.beginPath();
+      ctx.moveTo(px,py);
+      ctx.lineTo(sx,sy);
+      ctx.stroke();
+    } else if(p.type === 'flower'){
+      const size = Math.max(2, scale*1.1);
+      ctx.globalAlpha = alpha;
+      drawFlower(sx, sy, size);
+      ctx.globalAlpha = 1;
+    } else if(p.type === 'text'){
+      const fontSize = Math.max(8, scale*3.2);
+      ctx.font = `${fontSize}px Georgia, serif`;
+      ctx.fillStyle = `rgba(255,235,200,${alpha})`;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(255,179,71,0.6)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(p.msg, sx, sy);
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // resplandor central
+  const glow = ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*0.35);
+  glow.addColorStop(0, 'rgba(255,179,71,0.18)');
+  glow.addColorStop(1, 'rgba(255,179,71,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0,0,W,H);
+
+  if(elapsed >= DURATION){
+    running = false;
+    endScreen.style.display = 'flex';
+    requestAnimationFrame(()=> endScreen.style.opacity = '1');
+    return;
+  }
+  requestAnimationFrame(frame);
+}
+
+function startJourney(){
+  startScreen.style.opacity = '0';
+  setTimeout(()=> startScreen.style.display='none', 1000);
+  elapsed = 0;
+  frame.last = null;
+  running = true;
+  requestAnimationFrame(frame);
+}
+
+startBtn.addEventListener('click', startJourney);
+replayBtn.addEventListener('click', ()=>{
+  endScreen.style.opacity = '0';
+  setTimeout(()=>{
+    endScreen.style.display='none';
+    startScreen.style.display='flex';
+    requestAnimationFrame(()=> startScreen.style.opacity='1');
+    initParticles();
+  }, 800);
+});
+
+/* fondo estático mientras se ve la pantalla de inicio */
+ctx.fillStyle = '#05030a';
+ctx.fillRect(0,0,W,H);
+</script>
+
+</body>
+</html>
